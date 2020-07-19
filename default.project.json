@@ -41,6 +41,12 @@
             "$path": "utility/EventSignal.lua"
           }
         }
+      },
+      "Field": {
+        "$path": "Field/Field.lua",
+        "Event": {
+          "$path": "Field/Event.lua"
+        }
       }
     },
     "SoundService": {
