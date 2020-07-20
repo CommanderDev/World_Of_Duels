@@ -6,7 +6,7 @@ local arenaManager = {}
 local arenasFolder = workspace:WaitForChild("arenasFolder")
 
 function arenaManager:connect()
-    for arenaIndex, arenaModel in next, arenasFolder:GetChildren() do
+    for arenaIndex, arenaModel in next, arenasFolder:GetChildren() do --Loops through all arenas then creates a Arena class.
         coroutine.wrap(function()
             Arena.new(arenaModel)
         end)()
