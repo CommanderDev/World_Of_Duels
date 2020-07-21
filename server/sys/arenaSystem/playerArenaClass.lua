@@ -137,7 +137,7 @@ function playerArenaClass:HandleEvents() --Handles all of the events associated 
         local characterObject = self.playerObject.Character or self.playerObject.CharacterAppearanceLoaded:Wait()
         local humanoidRootPart = characterObject:WaitForChild("HumanoidRootPart")
         local randomSpawn = math.random(1, #spawnsFolder:GetChildren())
-        humanoidRootPart.CFrame = spawnsFolder[randomSpawn].CFrame
+        humanoidRootPart.CFrame = spawnsFolder:GetChildren()[randomSpawn].CFrame
         self:Destroy()
     end) 
 end
