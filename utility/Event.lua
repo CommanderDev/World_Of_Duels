@@ -18,7 +18,11 @@ end
 function Event:disconnect(index) --Disconnectsthe function in the given index.
 	table.remove(self.signals, index)
 end
-
+function Event:disconnectAll() do 
+	for index, value in next, self.signals  do
+		self:disconnect(index) 
+	end 
+end 
 function Event:fire(...) --Fires the event and calls every function in the event's connection.
 	for index, signal in next, self.signals do
 		if signal.connected then
