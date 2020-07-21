@@ -21,6 +21,7 @@ local arenaData =
 
 function Arena.new(arenaModel) 
     local self = setmetatable({}, Arena)
+    print("Creating new arena!")
     self.arenaModel = arenaModel
     self.padsFolder = arenaModel:WaitForChild("padsFolder")
     self.spawnsFolder = arenaModel:WaitForChild("spawnsFolder")
@@ -188,8 +189,10 @@ function Arena:HandleEvents()
     end)
 
     self.events.matchConcluded:connect(function()
-     --   self.matchState = "Awaiting Players" 
+        self.matchState = "Awaiting Players" 
+       -- wait(1)
         self:UpdateScoreboards()
+       -- self:ActivatePads()
         Arena.new(self.arenaModel)
         self:Destroy()
     end)
@@ -222,6 +225,7 @@ end
 
 function Arena:ActivatePads() --Handles the pad activation
     for index, pad in next, self.padsFolder:GetChildren() do 
+        if(self.padFields[pad]) then return end
         self.padFields[pad] = Field.new({pad})
         self.padFields[pad]:Start()
         self:HandleEnteringAndLeavingPad(pad, self.padFields[pad]) 
