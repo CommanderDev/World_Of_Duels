@@ -1,4 +1,6 @@
 ---[[ Dependencies ]]---
+local playerArenaClass = _G.get "sys/arenaSystem/playerArenaClass"
+
 local Field = require(game.ReplicatedStorage.Field)
 
 local Arena = {}
