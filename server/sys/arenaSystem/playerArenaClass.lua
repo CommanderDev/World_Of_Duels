@@ -25,12 +25,13 @@ playerArenaClass.new = function(playerObject, team, teamNumber, arena) --Creates
     self.arena = arena --The arena model the class is associated with
     self.events = playerArenaClass.arenaEvents[arena] 
     self.isEligible = false --Determines if match is eligible fpr beginning
-    
+    self.spawnLocation = arena.spawnsFolder:FindFirstChild(team.."-"..teamNumber)
+    print(self.spawnLocation)
     ---[[ UI Elements ]]---
     self.playerGui = playerObject:WaitForChild("PlayerGui")
     self.duelUI = self.playerGui:WaitForChild("duelUI")
     self.startButton = self.duelUI:WaitForChild("startButton")
-
+    self.realStartButton = self.startButton:WaitForChild("clicker")
     ---[[ Connections ]]---
     self.connections =
     {
@@ -42,9 +43,11 @@ end
 
 
 function playerArenaClass:HandleStartButton()
-    self.connections["startButtonClicked"] = self.startButton.MouseButton1Click:Connect(function()
+    self.connections["startButtonClicked"] = self.realStartButton.MouseButton1Click:Connect(function()
+        print("Start clicked")
         if(self.isEligible) then
-            playerArenaClass.beginRound:fire()
+            self.realStartButton.Visible = false
+            self.events.beginRound:fire()
         end
     end)
 end
@@ -55,14 +58,36 @@ function playerArenaClass:HandleEvents() --Handles all of the events associated 
         print("Prompting begin!")
         if(isEligible) then
             self.startButton.Visible = true
+            self.isEligible = true
         else
-             self.startButton.Visible = false
+            if(self.isEligible) then
+                self.startButton.Visible = false
+                self.isEligible = false
+            end
         end
-    end)   
+    end)  
+    
+    self.events.beginRound:connect(function()
+        print("Beginning round")
+        local characterObject = self.playerObject.Character or self.playerObject.CharacterAdded:Wait()
+        local humanoidRootPart = characterObject:WaitForChild("HumanoidRootPart")
+        humanoidRootPart.CFrame = self.spawnLocation.CFrame + Vector3.new(0,2,0)
+        local sword = game.ServerStorage:FindFirstChild("Sword") 
+        sword:Clone().Parent = characterObject
+    end)
+end
+
+function playerArenaClass:DisconnectConnections()
+    for index, connection in next, self.connections do
+        if(connection) then
+            connection:Disconnect()
+        end
+    end
 end
 
 function playerArenaClass:Destroy()
-   self = nil 
+   self:DisconnectConnections()
+    self = nil 
 end
 
 return playerArenaClass
