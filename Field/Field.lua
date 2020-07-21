@@ -142,6 +142,9 @@ end
 
 function Field:Start()
 	LEAVE_FIELD_ON_DEATH = true
+	if(not self.running) then
+	--	self.running = true
+	end
 	self.heartbeatConnection = RunService.Heartbeat:Connect(function()
 		if(Field.isClient) then
 			self:CheckPlayer(game.Players.LocalPlayer)
@@ -160,6 +163,7 @@ function Field:Stop()
 	if(LEAVE_FIELD_ON_DEATH) then
 		LEAVE_FIELD_ON_DEATH = false
 	end
+	--self.running = false
 end
 
 -- HANDLE PLAYER DEATH.
