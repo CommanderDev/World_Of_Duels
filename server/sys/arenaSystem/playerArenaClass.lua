@@ -1,3 +1,6 @@
+---[[ Services ]]---
+local CollectionService = game:GetService("CollectionService")
+
 local playerArenaClass = {}
 playerArenaClass.__index = playerArenaClass 
 
@@ -11,7 +14,11 @@ function playerArenaClass:GetEvents(arena) --Gets the events, not associated wit
     local events =
     {
         promptBegin = _G.Event.new();
+        matchBegun = _G.Event.new();
         beginRound = _G.Event.new();
+        roundConcluded = _G.Event.new();
+        matchConcluded = _G.Event.new();
+        playerKilled = _G.Event.new();
     }
     playerArenaClass.arenaEvents[arena] = events
     return events
@@ -26,19 +33,36 @@ playerArenaClass.new = function(playerObject, team, teamNumber, arena) --Creates
     self.events = playerArenaClass.arenaEvents[arena] 
     self.isEligible = false --Determines if match is eligible fpr beginning
     self.spawnLocation = arena.spawnsFolder:FindFirstChild(team.."-"..teamNumber)
-    print(self.spawnLocation)
+
+    self.playerScoreboard1 = arena.billMain.scoreboard1[team.."Frame"][teamNumber]
+    self.playerScoreboard2 = arena.billMain.scoreboard2[team.."Frame"][teamNumber]
     ---[[ UI Elements ]]---
     self.playerGui = playerObject:WaitForChild("PlayerGui")
     self.duelUI = self.playerGui:WaitForChild("duelUI")
     self.startButton = self.duelUI:WaitForChild("startButton")
     self.realStartButton = self.startButton:WaitForChild("clicker")
+
+    CollectionService:AddTag(playerObject, team)
     ---[[ Connections ]]---
     self.connections =
     {
-        ["startButtonClicked"] = nil
+        ["startButtonClicked"] = nil;
+        ["diedConnection"] = nil;
     }
+    self:HandlePlayerScoreboards()
     self:HandleEvents()
     return self
+end
+
+function playerArenaClass:HandlePlayerScoreboard(scoreboard)
+    scoreboard.Visible = true
+    scoreboard.avatar.Image = game.Players:GetUserThumbnailAsync(self.playerObject.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
+    scoreboard.playerName.Text = self.playerObject.Name
+end 
+
+function playerArenaClass:HandlePlayerScoreboards()
+    self:HandlePlayerScoreboard(self.playerScoreboard1)    
+    self:HandlePlayerScoreboard(self.playerScoreboard2)    
 end
 
 
@@ -46,9 +70,21 @@ function playerArenaClass:HandleStartButton()
     self.connections["startButtonClicked"] = self.realStartButton.MouseButton1Click:Connect(function()
         print("Start clicked")
         if(self.isEligible) then
-            self.realStartButton.Visible = false
+            self.startButton.Visible = false
+            self.events.matchBegun:fire()
             self.events.beginRound:fire()
         end
+    end)
+end
+
+
+function playerArenaClass:HandleDeathEvent()
+    local characterObject = self.playerObject.Character or self.playerObject.CharacterAdded:Wait()
+    local humanoid = characterObject:WaitForChild("Humanoid")
+   self.connections["diedConnection"] = humanoid.Died:Connect(function()
+        local creator = humanoid:FindFirstChild("creator")
+        self.events.playerKilled:fire(creator.Value, self.team, self.playerObject)
+        self.connections["diedConnection"]:Disconnect()
     end)
 end
 
@@ -74,6 +110,11 @@ function playerArenaClass:HandleEvents() --Handles all of the events associated 
         humanoidRootPart.CFrame = self.spawnLocation.CFrame + Vector3.new(0,2,0)
         local sword = game.ServerStorage:FindFirstChild("Sword") 
         sword:Clone().Parent = characterObject
+        self:HandleDeathEvent()
+    end)
+
+    self.events.playerKilled:connect(function(crator)
+        print("Creator")
     end)
 end
 
@@ -83,10 +124,16 @@ function playerArenaClass:DisconnectConnections()
             connection:Disconnect()
         end
     end
+    for index, event in next, playerArenaClass.arenaEvents[self.arena] do
+        event:disconnect()
+    end
 end
 
 function playerArenaClass:Destroy()
-   self:DisconnectConnections()
+    self:DisconnectConnections()
+    self.playerScoreboard1.Visible = false 
+    self.playerScoreboard2.Visible = false
+    CollectionService:RemoveTag(playerObject, self.team)
     self = nil 
 end
 
