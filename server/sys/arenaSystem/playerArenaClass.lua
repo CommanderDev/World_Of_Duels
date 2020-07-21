@@ -10,6 +10,9 @@ playerArenaClass.promptBegin = {} --Holds a table of events for all the arenas!
 playerArenaClass.beginRound = _G.Event.new()
 playerArenaClass.arenaEvents = {} --Holds a array of all the events in each arena.
 
+---[[ Workspace ]]---
+local spawnsFolder = workspace:WaitForChild("spawnsFolder")
+
 function playerArenaClass:GetEvents(arena) --Gets the events, not associated with the actual player.
     local events =
     {
@@ -42,6 +45,8 @@ playerArenaClass.new = function(playerObject, team, teamNumber, arena) --Creates
     self.startButton = self.duelUI:WaitForChild("startButton")
     self.realStartButton = self.startButton:WaitForChild("clicker")
 
+    ---[[ Player Variables ]]---
+    self.sword = nil --THe player's given sword
     CollectionService:AddTag(playerObject, team)
     ---[[ Connections ]]---
     self.connections =
@@ -84,6 +89,7 @@ function playerArenaClass:HandleDeathEvent()
    self.connections["diedConnection"] = humanoid.Died:Connect(function()
         local creator = humanoid:FindFirstChild("creator")
         self.events.playerKilled:fire(creator.Value, self.team, self.playerObject)
+        self.sword = nil
         self.connections["diedConnection"]:Disconnect()
     end)
 end
@@ -105,17 +111,35 @@ function playerArenaClass:HandleEvents() --Handles all of the events associated 
     
     self.events.beginRound:connect(function()
         print("Beginning round")
+        if(self.connections["diedConnection"]) then
+            self.connections["diedConnection"]:Disconnect()
+        end
         local characterObject = self.playerObject.Character or self.playerObject.CharacterAdded:Wait()
         local humanoidRootPart = characterObject:WaitForChild("HumanoidRootPart")
+        local humanoid = characterObject:WaitForChild("Humanoid")
+        humanoid.Health = humanoid.MaxHealth
         humanoidRootPart.CFrame = self.spawnLocation.CFrame + Vector3.new(0,2,0)
-        local sword = game.ServerStorage:FindFirstChild("Sword") 
-        sword:Clone().Parent = characterObject
+        if(self.sword) then 
+            self.sword.Parent = characterObject
+        else 
+            local sword = game.ServerStorage:FindFirstChild("Sword"):Clone()
+            sword.Parent = characterObject
+            self.sword = sword
+        end 
         self:HandleDeathEvent()
     end)
 
-    self.events.playerKilled:connect(function(crator)
-        print("Creator")
+    self.events.playerKilled:connect(function(killer)
+        print(killer)
     end)
+    self.events.matchConcluded:connect(function()
+        print("Match concluded for "..self.playerObject.Name)
+        local characterObject = self.playerObject.Character or self.playerObject.CharacterAppearanceLoaded:Wait()
+        local humanoidRootPart = characterObject:WaitForChild("HumanoidRootPart")
+        local randomSpawn = math.random(1, #spawnsFolder:GetChildren())
+        humanoidRootPart.CFrame = spawnsFolder[randomSpawn].CFrame
+        self:Destroy()
+    end) 
 end
 
 function playerArenaClass:DisconnectConnections()
