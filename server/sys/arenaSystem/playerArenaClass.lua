@@ -1,5 +1,11 @@
 ---[[ Services ]]---
 local CollectionService = game:GetService("CollectionService")
+local PhysicsService = game:GetService("PhysicsService")
+
+--PhysicsService:CreateCollisionGroup("In Arena")
+
+---[[ Dependencies ]]---
+local Player = _G.get "sys/playerSystem/Player"
 
 local playerArenaClass = {}
 playerArenaClass.__index = playerArenaClass 
@@ -111,10 +117,18 @@ function playerArenaClass:HandleEvents() --Handles all of the events associated 
     
     self.events.beginRound:connect(function()
         print("Beginning round")
+        --Player:SetCharacterCollision(true)
         if(self.connections["diedConnection"]) then
             self.connections["diedConnection"]:Disconnect()
         end
         local characterObject = self.playerObject.Character or self.playerObject.CharacterAdded:Wait()
+        Player.playerClasses[self.playerObject]:SetCharacterCollisionGroup("In Arena")
+       --[[ for index, characterPart in next, characterObject:GetDescendants() do
+            if(characterPart:IsA("BasePart")) then 
+                PhysicsService:SetPartCollisionGroup(characterPart, "In Arena")
+            end
+        end
+        ]]
         local humanoidRootPart = characterObject:WaitForChild("HumanoidRootPart")
         local humanoid = characterObject:WaitForChild("Humanoid")
         humanoid.Health = humanoid.MaxHealth
@@ -133,11 +147,13 @@ function playerArenaClass:HandleEvents() --Handles all of the events associated 
         print(killer)
     end)
     self.events.matchConcluded:connect(function()
-        print("Match concluded for "..self.playerObject.Name)
         local characterObject = self.playerObject.Character or self.playerObject.CharacterAppearanceLoaded:Wait()
         local humanoidRootPart = characterObject:WaitForChild("HumanoidRootPart")
         local randomSpawn = math.random(1, #spawnsFolder:GetChildren())
         humanoidRootPart.CFrame = spawnsFolder:GetChildren()[randomSpawn].CFrame
+        if(self.sword) then
+            self.sword:Destroy()
+        end
         self:Destroy()
     end) 
 end
