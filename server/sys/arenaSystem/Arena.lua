@@ -157,8 +157,8 @@ function Arena:HandleEvents()
         self.matchState = "Match Underway"
         self.playersAlive = 
         {
-            team1 = 0;
-            team2 = 0;
+            team1 = self.teamCount["team1"];
+            team2 = self.teamCount["team2"];
         }
         for pad, field in next, self.padFields do
             field:Stop()
@@ -190,8 +190,16 @@ function Arena:HandleEvents()
 
     self.events.matchConcluded:connect(function()
         self.matchState = "Awaiting Players" 
-       -- wait(1)
-        self:UpdateScoreboards()
+        self.teamCount =
+        {
+            team1 = 0;
+            team2 = 0;
+        }
+        self.scores = 
+        {
+            team1 = 0;
+            team2 = 0;
+        }
        -- self:ActivatePads()
         Arena.new(self.arenaModel)
         self:Destroy()
@@ -225,7 +233,8 @@ end
 
 function Arena:ActivatePads() --Handles the pad activation
     for index, pad in next, self.padsFolder:GetChildren() do 
-        if(self.padFields[pad]) then return end
+        if(self.padFields[pad]) then self.padFields[pad]:Destroy() end
+        pad.BrickColor = arenaData.inactiveBrickColor
         self.padFields[pad] = Field.new({pad})
         self.padFields[pad]:Start()
         self:HandleEnteringAndLeavingPad(pad, self.padFields[pad]) 
