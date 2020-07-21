@@ -25,23 +25,28 @@ function Arena.new(arenaModel)
     self.padsFolder = arenaModel:WaitForChild("padsFolder")
     self.spawnsFolder = arenaModel:WaitForChild("spawnsFolder")
     self.billMain = arenaModel:WaitForChild("billMain")
-    self.scoreboard1 = scoreboardUI:Clone()
-    self.scoreboard1.Name = "scoreboard1"
-    self.scoreboard1.Parent = self.billMain
-    self.scoreboard2 = scoreboardUI:Clone()
-    self.scoreboard2.Name = "scoreboard2"
-    self.scoreboard2:WaitForChild("team1Frame").Name = "team2Frame"
-    self.scoreboard2:WaitForChild("team2Frame").Name = "team1Frame"
-    self.scoreboard2.Parent = self.billMain
-    self.scoreboard2.Face = "Right"
-
+    if(not self.billMain:FindFirstChild("scoreboard1")) then 
+        self.scoreboard1 = scoreboardUI:Clone()
+        self.scoreboard1.Name = "scoreboard1"
+        self.scoreboard1.Parent = self.billMain
+        self.scoreboard2 = scoreboardUI:Clone()
+        self.scoreboard2.Name = "scoreboard2"
+        self.scoreboard2:WaitForChild("team1Frame").Name = "team2Frame"
+        self.scoreboard2:WaitForChild("team2Frame").Name = "team1Frame"
+        self.scoreboard2.Parent = self.billMain
+        self.scoreboard2.Face = "Right"
+    else
+        self.scoreboard1 = self.billMain:FindFirstChild("scoreboard1")
+        self.scoreboard2 = self.billMain:FindFirstChild("scoreboard2")
+    end
     ---[[ Team Variables ]]---
     self.teamCount =
     {
         team1 = 0;
         team2 = 0;
     }
-    self.padFields = {}
+    self.padFields = {} --Fields for each pad
+
     self.padOwners =
     {
         team1 = {};
@@ -53,7 +58,7 @@ function Arena.new(arenaModel)
         team2 = 0
     }
 
-    self.firstTo = 5
+    self.firstTo = 3
     self.winby = 1
 
     self.matchInProgress = false --Bool to see if the match is in progress.
@@ -66,6 +71,13 @@ function Arena.new(arenaModel)
     self:HandleEvents()
     return self
 end
+
+function Arena:Destroy()
+    for index, event in next, self.events do 
+        event:disconnectAll()
+    end
+    self = nil
+end 
 
 function Arena:DeterminePadActivation()
     for index, pad in next, self.padsFolder:GetChildren() do
@@ -154,7 +166,7 @@ function Arena:HandleEvents()
     end)
     self.events.playerKilled:connect(function(killer, team, killedPlayer)
         if(self.playersAlive) then
-            killedPlayer.CharacterAdded:Wait()
+            killedPlayer.CharacterAppearanceLoaded:Wait()
             self.playersAlive[team] -= 1
             if(self.playersAlive[team] <= 0) then
                 if(team == "team1") then
@@ -178,8 +190,8 @@ function Arena:HandleEvents()
     self.events.matchConcluded:connect(function()
      --   self.matchState = "Awaiting Players" 
         self:UpdateScoreboards()
-        Arena.new(self.arena)
-        self = nil
+        Arena.new(self.arenaModel)
+        self:Destroy()
     end)
 end
 
@@ -210,11 +222,9 @@ end
 
 function Arena:ActivatePads() --Handles the pad activation
     for index, pad in next, self.padsFolder:GetChildren() do 
-        coroutine.wrap(function()
-            self.padFields[pad] = Field.new({pad})
-            self.padFields[pad]:Start()
-            self:HandleEnteringAndLeavingPad(pad, self.padFields[pad]) 
-        end)()
+        self.padFields[pad] = Field.new({pad})
+        self.padFields[pad]:Start()
+        self:HandleEnteringAndLeavingPad(pad, self.padFields[pad]) 
     end
     self:DeterminePadActivation()
 end
