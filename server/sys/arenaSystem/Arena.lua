@@ -33,6 +33,7 @@ function Arena.new(arenaModel)
         team1 = {};
         team2 = {};
     }
+    self.events = playerArenaClass:GetEvents(arenaModel)
     self:ActivatePads()
     return self
 end
@@ -49,7 +50,6 @@ function Arena:DeterminePadActivation()
                 self.padFields[pad]:Stop()
                 pad.Transparency = 1
                 pad.BrickColor = arenaData.inactiveBrickColor
-
             else
                 self.padFields[pad]:Start()
                 pad.Transparency = 0
@@ -58,27 +58,36 @@ function Arena:DeterminePadActivation()
     end
 end
 
+function Arena:CheckMatchEligibility()
+    if(self.teamCount["team1"] == self.teamCount["team2"]) then
+        self.events.promptBegin:fire(true)
+    else
+        self.events.promptBegin:fire(false)
+    end
+end
+
 function Arena:HandleEnteringAndLeavingPad(padObject, padField)
     local start, finish = string.find(padObject.Name, "-")
     local team = string.sub(padObject.Name, 1, start-1)
     local padNumber = string.sub(padObject.Name, finish+1, string.len(padObject.Name))
+    local playerClass
     padNumber = tonumber(padNumber)
     padField.PlayerEntered:Connect(function(playerObject)
-        print("Player entered pad")
         if(self.padOwners[team][padNumber]) then return end
-        print("Pad number is true")
         local success, err = pcall(function()
             if(self.teamCount[team] == padNumber - 1) then
                 padObject.BrickColor = arenaData.defaultTeamColors[team]
                 self.teamCount[team] = padNumber
                 self.padOwners[team][padNumber] = playerObject
+                
+                playerClass = playerArenaClass.new(playerObject, team, padNumber, self.arenaModel)
                 self:DeterminePadActivation()
+                self:CheckMatchEligibility()
             end
         end)
         if(not success) then
             print(err)
         end
-        print(self.teamCount[team].." is the number in "..team)
     end)
     padField.PlayerLeft:Connect(function(playerObject)
         if(self.padOwners[team][padNumber] ~= playerObject) then return end
@@ -86,11 +95,13 @@ function Arena:HandleEnteringAndLeavingPad(padObject, padField)
         if(padNumber > self.teamCount[team]) then return end
         padObject.BrickColor = arenaData.inactiveBrickColor
         self.teamCount[team] = padNumber - 1
-        
         if(self.teamCount[team]) < 0 then
             self.teamCount[team] = 0
         end
-        print(self.teamCount[team].." is the amount on "..team)
+        if(playerClass) then
+            playerClass:Destroy()
+        end
+        self:CheckMatchEligibility()
         self:DeterminePadActivation()
     end)
 end
