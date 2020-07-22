@@ -12,12 +12,6 @@ local arenaData = _G.get "data/arenaData"
 local playerArenaClass = {}
 playerArenaClass.__index = playerArenaClass 
 
-playerArenaClass.roundBegun = _G.Event.new() --Event to fire to a players for every new round.
-
-playerArenaClass.promptBegin = {} --Holds a table of events for all the arenas!
-playerArenaClass.beginRound = _G.Event.new()
-playerArenaClass.arenaEvents = {} --Holds a array of all the events in each arena.
-
 ---[[ Workspace ]]---
 local spawnsFolder = workspace:WaitForChild("spawnsFolder")
 
