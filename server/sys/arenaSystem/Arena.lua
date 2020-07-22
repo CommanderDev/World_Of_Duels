@@ -19,7 +19,18 @@ local arenaData =
         team1 = BrickColor.new("Bright red");
         team2 = BrickColor.new("Bright blue")
     };
-    inactiveBrickColor = BrickColor.new("Medium stone grey")
+    inactiveBrickColor = BrickColor.new("Medium stone grey");
+    firsttoSettings = --Just so exploiters can't change settings that aren't in the game.
+    {
+        [3] = true;
+        [5] = true;
+        [7] = true;
+    };
+    winbySettings =
+    {
+        [1] = true;
+        [2] = true
+    };
 }
 
 function Arena:CreateArenaData()
@@ -40,7 +51,7 @@ function Arena:CreateArenaData()
         team2 = 0
     }
 
-    self.firstTo = 3
+    self.firstto = 3
     self.winby = 1
 
     self.matchInProgress = false --Bool to see if the match is in progress.
@@ -212,10 +223,9 @@ function Arena:HandleEvents()
     end)
     self.events.roundConcluded:connect(function(winnerTeam, loserTeam)
         self.scores[winnerTeam] += 1
-        if(self.scores[winnerTeam] >= self.firstTo and self.scores[winnerTeam]-self.scores[loserTeam] >= self.winby) then
+        if(self.scores[winnerTeam] >= self.firstto and self.scores[winnerTeam]-self.scores[loserTeam] >= self.winby) then
             self.events.playerMatchConcluded:fire()
             self.events.matchConcluded:fire()
-           -- self.events.matchConcluded:fire(winnerTeam)
         else 
             self.events.beginRound:fire()
         end
@@ -226,8 +236,16 @@ function Arena:HandleEvents()
         self:CreateArenaData()
         self:UpdateScoreboards()
         self:ActivatePads()
-        --Arena.new(self.arenaModel)
-        --self:Destroy()
+    end)
+
+    self.events.settingChanged:connect(function(settingToChange, newValue) --Handles a certains etting being changed and sets the value accordingly.
+        print(settingToChange)
+        print(newValue)
+        local setting = arenaData[settingToChange.."Settings"][newValue]
+        print(setting)
+        if(not setting) then return end 
+        self[settingToChange] = newValue 
+        self:UpdateScoreboards()
     end)
 end
 
@@ -235,12 +253,12 @@ function Arena:UpdateScoreboard(scoreboard)
     local team1Frame = scoreboard:WaitForChild("team1Frame")
     local team2Frame = scoreboard:WaitForChild("team2Frame")
     local titleFrame = scoreboard:WaitForChild("titleFrame")
-    local firstToLabel = titleFrame:WaitForChild("firstToLabel")
+    local firsttoLabel = titleFrame:WaitForChild("firstToLabel")
     local winbyLabel = titleFrame:WaitForChild("winbyLabel")
     local statusLabel = titleFrame:WaitForChild("statusLabel")
     team1Frame.winsLabel.Text = self.scores["team1"]
     team2Frame.winsLabel.Text = self.scores["team2"]
-    firstToLabel.Text = "First to: "..self.firstTo
+    firsttoLabel.Text = "First to: "..self.firstto
     winbyLabel.Text = "Win by "..self.winby
     statusLabel.Text = self.matchState
 end
