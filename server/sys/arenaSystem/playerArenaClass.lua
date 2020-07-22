@@ -7,6 +7,8 @@ local PhysicsService = game:GetService("PhysicsService")
 ---[[ Dependencies ]]---
 local Player = _G.get "sys/playerSystem/Player"
 
+local arenaData = _G.get "data/arenaData"
+
 local playerArenaClass = {}
 playerArenaClass.__index = playerArenaClass 
 
@@ -50,7 +52,9 @@ playerArenaClass.new = function(playerObject, team, teamNumber, arena) --Creates
     self.duelUI = self.playerGui:WaitForChild("duelUI")
     self.startButton = self.duelUI:WaitForChild("startButton")
     self.realStartButton = self.startButton:WaitForChild("clicker")
-
+    self.startGradient = self.startButton:WaitForChild("UIGradient")
+    self.borderPixel = self.startButton:WaitForChild("borderPixel")
+    self.startPixelGradient = self.borderPixel:WaitForChild("UIGradient")
     ---[[ Player Variables ]]---
     self.sword = nil --THe player's given sword
     CollectionService:AddTag(playerObject, team)
@@ -60,6 +64,7 @@ playerArenaClass.new = function(playerObject, team, teamNumber, arena) --Creates
         ["startButtonClicked"] = nil;
         ["diedConnection"] = nil;
     }
+
     self:HandlePlayerScoreboards()
     self:HandleEvents()
     return self
@@ -78,6 +83,20 @@ end
 
 
 function playerArenaClass:HandleStartButton()
+    local startColor = Color3.fromRGB(170, 0, 0)
+    local endColor = Color3.fromRGB(255,0,0)
+    if(self.team == "team2") then --Handles UI color changing
+        startColor = Color3.fromRGB(0,0,170)
+        endColor = Color3.fromRGB(0,0,255)
+    end
+    local colorSequence = ColorSequence.new(
+        {
+            ColorSequenceKeypoint.new(0.0, startColor);
+            ColorSequenceKeypoint.new(1.0, endColor)
+        }
+      )
+    self.startGradient.Color = colorSequence
+    self.startPixelGradient.Color = colorSequence
     local events = playerArenaClass.arenaEvents[self.arena]
     self.connections["startButtonClicked"] = self.realStartButton.MouseButton1Click:Connect(function()
         if(self.isEligible) then
@@ -133,7 +152,8 @@ function playerArenaClass:HandleEvents() --Handles all of the events associated 
         humanoidRootPart.CFrame = self.spawnLocation.CFrame + Vector3.new(0,2,0)
         if(self.sword) then 
             self.sword.Parent = characterObject
-        else 
+        else
+            if(characterObject:FindFirstChildOfClass("Tool")) then return end
             local sword = game.ServerStorage:FindFirstChild("Sword"):Clone()
             sword.Parent = characterObject
             self.sword = sword
@@ -170,7 +190,7 @@ function playerArenaClass:Destroy()
     self:DisconnectConnections()
     self.playerScoreboard1.Visible = false 
     self.playerScoreboard2.Visible = false
-    CollectionService:RemoveTag(playerObject, self.team)
+    CollectionService:RemoveTag(self.playerObject, self.team)
     self = nil 
 end
 
