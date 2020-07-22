@@ -12,6 +12,8 @@ local arenaData = _G.get "data/arenaData"
 local playerArenaClass = {}
 playerArenaClass.__index = playerArenaClass 
 
+playerArenaClass.arenaEvents = {} --Holds a array of all the events in each arena.
+
 ---[[ Workspace ]]---
 local spawnsFolder = workspace:WaitForChild("spawnsFolder")
 
