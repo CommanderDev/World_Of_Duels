@@ -19,28 +19,7 @@ local arenaData =
     inactiveBrickColor = BrickColor.new("Medium stone grey")
 }
 
-function Arena.new(arenaModel) 
-    local self = setmetatable({}, Arena)
-    print("Creating new arena!")
-    self.arenaModel = arenaModel
-    self.padsFolder = arenaModel:WaitForChild("padsFolder")
-    self.spawnsFolder = arenaModel:WaitForChild("spawnsFolder")
-    self.billMain = arenaModel:WaitForChild("billMain")
-    if(not self.billMain:FindFirstChild("scoreboard1")) then 
-        self.scoreboard1 = scoreboardUI:Clone()
-        self.scoreboard1.Name = "scoreboard1"
-        self.scoreboard1.Parent = self.billMain
-        self.scoreboard2 = scoreboardUI:Clone()
-        self.scoreboard2.Name = "scoreboard2"
-        self.scoreboard2:WaitForChild("team1Frame").Name = "team2Frame"
-        self.scoreboard2:WaitForChild("team2Frame").Name = "team1Frame"
-        self.scoreboard2.Parent = self.billMain
-        self.scoreboard2.Face = "Right"
-    else
-        self.scoreboard1 = self.billMain:FindFirstChild("scoreboard1")
-        self.scoreboard2 = self.billMain:FindFirstChild("scoreboard2")
-    end
-    ---[[ Team Variables ]]---
+function Arena:CreateArenaData()
     self.teamCount =
     {
         team1 = 0;
@@ -64,8 +43,32 @@ function Arena.new(arenaModel)
 
     self.matchInProgress = false --Bool to see if the match is in progress.
     self.matchState = "Awaiting Players" --THe current state of the arena.
-    self.events = playerArenaClass:GetEvents(arenaModel)
+end
 
+function Arena.new(arenaModel) 
+    local self = setmetatable({}, Arena)
+    self.arenaModel = arenaModel
+    self.padsFolder = arenaModel:WaitForChild("padsFolder")
+    self.spawnsFolder = arenaModel:WaitForChild("spawnsFolder")
+    self.billMain = arenaModel:WaitForChild("billMain")
+    if(not self.billMain:FindFirstChild("scoreboard1")) then 
+        self.scoreboard1 = scoreboardUI:Clone()
+        self.scoreboard1.Name = "scoreboard1"
+        self.scoreboard1.Parent = self.billMain
+        self.scoreboard2 = scoreboardUI:Clone()
+        self.scoreboard2.Name = "scoreboard2"
+        self.scoreboard2:WaitForChild("team1Frame").Name = "team2Frame"
+        self.scoreboard2:WaitForChild("team2Frame").Name = "team1Frame"
+        self.scoreboard2.Parent = self.billMain
+        self.scoreboard2.Face = "Right"
+    else
+        self.scoreboard1 = self.billMain:FindFirstChild("scoreboard1")
+        self.scoreboard2 = self.billMain:FindFirstChild("scoreboard2")
+    end
+    ---[[ Team Variables ]]---
+    self:CreateArenaData()
+    self.events = playerArenaClass:GetEvents(arenaModel)
+    self.playerClasses = {} --Classes for all the players's playerArenaClass
     ---[[ Functionality ]]---
     self:HandleScoreboard()
     self:ActivatePads()
@@ -93,6 +96,7 @@ function Arena:DeterminePadActivation()
                 pad.Transparency = 1
                 pad.BrickColor = arenaData.inactiveBrickColor
             else
+                print(pad.Name.." pad active!")
                 self.padFields[pad]:Start()
                 pad.Transparency = 0
             end
@@ -115,9 +119,9 @@ function Arena:HandleEnteringAndLeavingPad(padObject, padField)
     local start, finish = string.find(padObject.Name, "-")
     local team = string.sub(padObject.Name, 1, start-1)
     local padNumber = string.sub(padObject.Name, finish+1, string.len(padObject.Name))
-    local playerClass
     padNumber = tonumber(padNumber)
     padField.PlayerEntered:Connect(function(playerObject)
+        print("Player entered pad!")
         if(self.padOwners[team][padNumber] or self.matchInProgress) then return end
         local success, err = pcall(function()
             if(self.teamCount[team] == padNumber - 1) then
@@ -125,7 +129,7 @@ function Arena:HandleEnteringAndLeavingPad(padObject, padField)
                 self.teamCount[team] = padNumber
                 self.padOwners[team][padNumber] = playerObject
                 
-                playerClass = playerArenaClass.new(playerObject, team, padNumber, self.arenaModel) --Create player class.
+                self.playerClasses[playerObject] = playerArenaClass.new(playerObject, team, padNumber, self.arenaModel) --Create player class.
                 self:DeterminePadActivation()
                 self:CheckMatchEligibility()
             end
@@ -143,13 +147,27 @@ function Arena:HandleEnteringAndLeavingPad(padObject, padField)
         if(self.teamCount[team]) < 0 then
             self.teamCount[team] = 0
         end
-        if(playerClass) then
-            playerClass:Destroy() --Destroy player class
+        if(self.playerClasses[playerObject]) then
+            self.playerClasses[playerObject]:Destroy() --Destroy player class
+            self.playerClasses[playerObject] = nil
         end
         self:CheckMatchEligibility()
         self:DeterminePadActivation()
     end)
 end
+
+function Arena:DeactivatePads()
+    for index, pad in next, self.padsFolder:GetChildren() do
+        local start, finish = string.find(pad.Name, "-")
+        local team = string.sub(pad.Name, 1, start-1)
+        local padNumber = string.sub(pad.Name, finish+1, string.len(pad.Name))
+        padNumber = tonumber(padNumber)
+        local currentInTeam = self.teamCount[team]
+        if(padNumber > currentInTeam) then
+            pad.Transparency = 1
+        end
+    end
+end 
 
 function Arena:HandleEvents()
     self.events.matchBegun:connect(function()
@@ -162,7 +180,13 @@ function Arena:HandleEvents()
         }
         for pad, field in next, self.padFields do
             field:Stop()
+            self:DeactivatePads()
         end
+        self.padOwners =
+        {
+            team1 = {};
+            team2 = {};
+        }
         self:UpdateScoreboards()
     end)
     self.events.playerKilled:connect(function(killer, team, killedPlayer)
@@ -181,7 +205,9 @@ function Arena:HandleEvents()
     self.events.roundConcluded:connect(function(winnerTeam)
         self.scores[winnerTeam] += 1
         if(self.scores[winnerTeam] >= self.firstTo) then
-            self.events.matchConcluded:fire(winnerTeam)
+            self.events.playerMatchConcluded:fire()
+            self.events.matchConcluded:fire()
+           -- self.events.matchConcluded:fire(winnerTeam)
         else 
             self.events.beginRound:fire()
         end
@@ -189,20 +215,11 @@ function Arena:HandleEvents()
     end)
 
     self.events.matchConcluded:connect(function()
-        self.matchState = "Awaiting Players" 
-        self.teamCount =
-        {
-            team1 = 0;
-            team2 = 0;
-        }
-        self.scores = 
-        {
-            team1 = 0;
-            team2 = 0;
-        }
-       -- self:ActivatePads()
-        Arena.new(self.arenaModel)
-        self:Destroy()
+        self:CreateArenaData()
+        self:UpdateScoreboards()
+        self:ActivatePads()
+        --Arena.new(self.arenaModel)
+        --self:Destroy()
     end)
 end
 
@@ -233,11 +250,13 @@ end
 
 function Arena:ActivatePads() --Handles the pad activation
     for index, pad in next, self.padsFolder:GetChildren() do 
-        if(self.padFields[pad]) then self.padFields[pad]:Destroy() end
-        pad.BrickColor = arenaData.inactiveBrickColor
-        self.padFields[pad] = Field.new({pad})
-        self.padFields[pad]:Start()
-        self:HandleEnteringAndLeavingPad(pad, self.padFields[pad]) 
+        coroutine.wrap(function()
+            pad.BrickColor = arenaData.inactiveBrickColor
+            if(not self.padFields[pad]) then 
+            self.padFields[pad] = Field.new({pad})
+            self:HandleEnteringAndLeavingPad(pad, self.padFields[pad])
+            end 
+        end)()
     end
     self:DeterminePadActivation()
 end
