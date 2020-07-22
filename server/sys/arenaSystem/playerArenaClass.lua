@@ -26,6 +26,7 @@ function playerArenaClass:GetEvents(arena) --Gets the events, not associated wit
         matchBegun = _G.Event.new();
         beginRound = _G.Event.new();
         roundConcluded = _G.Event.new();
+        playerMatchConcluded = _G.Event.new();
         matchConcluded = _G.Event.new();
         playerKilled = _G.Event.new();
     }
@@ -39,7 +40,6 @@ playerArenaClass.new = function(playerObject, team, teamNumber, arena) --Creates
     self.team = team -- Player's team
     self.teamNumber = teamNumber --Player's number in the team
     self.arena = arena --The arena model the class is associated with
-    self.events = playerArenaClass.arenaEvents[arena] 
     self.isEligible = false --Determines if match is eligible fpr beginning
     self.spawnLocation = arena.spawnsFolder:FindFirstChild(team.."-"..teamNumber)
 
@@ -78,23 +78,24 @@ end
 
 
 function playerArenaClass:HandleStartButton()
+    local events = playerArenaClass.arenaEvents[self.arena]
     self.connections["startButtonClicked"] = self.realStartButton.MouseButton1Click:Connect(function()
-        print("Start clicked")
         if(self.isEligible) then
             self.startButton.Visible = false
-            self.events.matchBegun:fire()
-            self.events.beginRound:fire()
+            events.matchBegun:fire()
+            events.beginRound:fire()
         end
     end)
 end
 
 
 function playerArenaClass:HandleDeathEvent()
+    local events = playerArenaClass.arenaEvents[self.arena]
     local characterObject = self.playerObject.Character or self.playerObject.CharacterAdded:Wait()
     local humanoid = characterObject:WaitForChild("Humanoid")
    self.connections["diedConnection"] = humanoid.Died:Connect(function()
         local creator = humanoid:FindFirstChild("creator")
-        self.events.playerKilled:fire(creator.Value, self.team, self.playerObject)
+        events.playerKilled:fire(creator.Value, self.team, self.playerObject)
         self.sword = nil
         self.connections["diedConnection"]:Disconnect()
     end)
@@ -102,7 +103,8 @@ end
 
 function playerArenaClass:HandleEvents() --Handles all of the events associated witht eh player class.
     self:HandleStartButton()
-    self.events.promptBegin:connect(function(isEligible)
+    local events = playerArenaClass.arenaEvents[self.arena]
+    events.promptBegin:connect(function(isEligible)
         print("Prompting begin!")
         if(isEligible) then
             self.startButton.Visible = true
@@ -115,20 +117,12 @@ function playerArenaClass:HandleEvents() --Handles all of the events associated 
         end
     end)  
     
-    self.events.beginRound:connect(function()
-        print("Beginning round")
-        --Player:SetCharacterCollision(true)
+    events.beginRound:connect(function()
         if(self.connections["diedConnection"]) then
             self.connections["diedConnection"]:Disconnect()
         end
         local characterObject = self.playerObject.Character or self.playerObject.CharacterAdded:Wait()
         Player.playerClasses[self.playerObject]:SetCharacterCollisionGroup("In Arena")
-       --[[ for index, characterPart in next, characterObject:GetDescendants() do
-            if(characterPart:IsA("BasePart")) then 
-                PhysicsService:SetPartCollisionGroup(characterPart, "In Arena")
-            end
-        end
-        ]]
         local humanoidRootPart = characterObject:WaitForChild("HumanoidRootPart")
         local humanoid = characterObject:WaitForChild("Humanoid")
         humanoid.Health = humanoid.MaxHealth
@@ -143,10 +137,11 @@ function playerArenaClass:HandleEvents() --Handles all of the events associated 
         self:HandleDeathEvent()
     end)
 
-    self.events.playerKilled:connect(function(killer)
+    events.playerKilled:connect(function(killer)
         print(killer)
     end)
-    self.events.matchConcluded:connect(function()
+    events.playerMatchConcluded:connect(function()
+        print("Player match concluded for "..self.playerObject.Name)
         local characterObject = self.playerObject.Character or self.playerObject.CharacterAppearanceLoaded:Wait()
         local humanoidRootPart = characterObject:WaitForChild("HumanoidRootPart")
         local randomSpawn = math.random(1, #spawnsFolder:GetChildren())
@@ -163,9 +158,6 @@ function playerArenaClass:DisconnectConnections()
         if(connection) then
             connection:Disconnect()
         end
-    end
-    for index, event in next, playerArenaClass.arenaEvents[self.arena] do
-        event:disconnect()
     end
 end
 
