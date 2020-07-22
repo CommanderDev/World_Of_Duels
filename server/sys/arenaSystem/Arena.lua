@@ -1,11 +1,14 @@
 ---[[ Dependencies ]]---
 local playerArenaClass = _G.get "sys/arenaSystem/playerArenaClass"
+local Player = _G.get "sys/playerSystem/Player" --Player OOP
 
 local Field = require(game.ReplicatedStorage.Field)
 
 local Arena = {}
 Arena.__index = Arena
 
+---[[ Player OOP ]]---
+local playerClasses = Player.playerClasses
 ---[[ Server Storage ]]---
 local scoreboardUI = game.ServerStorage:WaitForChild("scoreboardUI")
 local arenaData = 
@@ -25,7 +28,6 @@ function Arena:CreateArenaData()
         team1 = 0;
         team2 = 0;
     }
-    self.padFields = {} --Fields for each pad
 
     self.padOwners =
     {
@@ -51,6 +53,8 @@ function Arena.new(arenaModel)
     self.padsFolder = arenaModel:WaitForChild("padsFolder")
     self.spawnsFolder = arenaModel:WaitForChild("spawnsFolder")
     self.billMain = arenaModel:WaitForChild("billMain")
+    self.padFields = {} --Fields for each pad
+
     if(not self.billMain:FindFirstChild("scoreboard1")) then 
         self.scoreboard1 = scoreboardUI:Clone()
         self.scoreboard1.Name = "scoreboard1"
@@ -97,6 +101,9 @@ function Arena:DeterminePadActivation()
                 pad.BrickColor = arenaData.inactiveBrickColor
             else
                 print(pad.Name.." pad active!")
+                if(not self.padFields[pad]) then
+                    self.padFields[pad] = Field.new({pad})
+                end
                 self.padFields[pad]:Start()
                 pad.Transparency = 0
             end
@@ -122,7 +129,7 @@ function Arena:HandleEnteringAndLeavingPad(padObject, padField)
     padNumber = tonumber(padNumber)
     padField.PlayerEntered:Connect(function(playerObject)
         print("Player entered pad!")
-        if(self.padOwners[team][padNumber] or self.matchInProgress) then return end
+        if(self.padOwners[team][padNumber] ~= nil or self.matchInProgress) then return end
         local success, err = pcall(function()
             if(self.teamCount[team] == padNumber - 1) then
                 padObject.BrickColor = arenaData.defaultTeamColors[team]
@@ -130,6 +137,7 @@ function Arena:HandleEnteringAndLeavingPad(padObject, padField)
                 self.padOwners[team][padNumber] = playerObject
                 
                 self.playerClasses[playerObject] = playerArenaClass.new(playerObject, team, padNumber, self.arenaModel) --Create player class.
+                playerClasses[playerObject]:SetCharacterCollisionGroup("In Arena")
                 self:DeterminePadActivation()
                 self:CheckMatchEligibility()
             end
@@ -151,6 +159,7 @@ function Arena:HandleEnteringAndLeavingPad(padObject, padField)
             self.playerClasses[playerObject]:Destroy() --Destroy player class
             self.playerClasses[playerObject] = nil
         end
+        playerClasses[playerObject]:SetCharacterCollisionGroup("Players")
         self:CheckMatchEligibility()
         self:DeterminePadActivation()
     end)
