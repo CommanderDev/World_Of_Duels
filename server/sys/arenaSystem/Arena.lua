@@ -100,7 +100,6 @@ function Arena:DeterminePadActivation()
                 pad.Transparency = 1
                 pad.BrickColor = arenaData.inactiveBrickColor
             else
-                print(pad.Name.." pad active!")
                 if(not self.padFields[pad]) then
                     self.padFields[pad] = Field.new({pad})
                 end
@@ -204,16 +203,16 @@ function Arena:HandleEvents()
             self.playersAlive[team] -= 1
             if(self.playersAlive[team] <= 0) then
                 if(team == "team1") then
-                    self.events.roundConcluded:fire("team2")
+                    self.events.roundConcluded:fire("team2", "team1")
                 else 
-                    self.events.roundConcluded:fire("team1")
+                    self.events.roundConcluded:fire("team1", "team2")
                 end
             end
          end
     end)
-    self.events.roundConcluded:connect(function(winnerTeam)
+    self.events.roundConcluded:connect(function(winnerTeam, loserTeam)
         self.scores[winnerTeam] += 1
-        if(self.scores[winnerTeam] >= self.firstTo) then
+        if(self.scores[winnerTeam] >= self.firstTo and self.scores[winnerTeam]-self.scores[loserTeam] >= self.winby) then
             self.events.playerMatchConcluded:fire()
             self.events.matchConcluded:fire()
            -- self.events.matchConcluded:fire(winnerTeam)
