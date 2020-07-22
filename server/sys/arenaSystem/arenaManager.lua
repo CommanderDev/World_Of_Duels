@@ -1,3 +1,5 @@
+---[[ Services ]]---
+local PhysicsService = game:GetService("PhysicsService")
 ---[[ Classes ]]---
 local Arena = _G.get "sys/arenaSystem/Arena"
 
