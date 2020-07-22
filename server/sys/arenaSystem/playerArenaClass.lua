@@ -116,6 +116,10 @@ function playerArenaClass:HandleEvents() --Handles all of the events associated 
             end
         end
     end)  
+
+    events.matchBegun:connect(function()
+        self.startButton.Visible = false
+    end)
     
     events.beginRound:connect(function()
         if(self.connections["diedConnection"]) then
@@ -149,6 +153,7 @@ function playerArenaClass:HandleEvents() --Handles all of the events associated 
         if(self.sword) then
             self.sword:Destroy()
         end
+        Player.playerClasses[self.playerObject]:SetCharacterCollisionGroup("Players")
         self:Destroy()
     end) 
 end
