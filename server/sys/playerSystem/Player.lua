@@ -12,7 +12,6 @@ PhysicsService:CollisionGroupSetCollidable("Players", "Players",false)
 function Player.new(playerObject)
     local self = setmetatable({}, Player)
     self.playerObject = playerObject
-    self.characterCollision = true --Determines if character collision is on or off.
     self:HandleCharacter()
     Player.playerClasses[playerObject] = self
     return self
