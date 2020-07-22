@@ -14,6 +14,9 @@ playerArenaClass.__index = playerArenaClass
 
 playerArenaClass.arenaEvents = {} --Holds a array of all the events in each arena.
 
+---[[ Local Variables ]]--- Variables that will play a part in all playerArenaClasses created
+local countdownTime = 30 --Time until settings are locked
+
 ---[[ Workspace ]]---
 local spawnsFolder = workspace:WaitForChild("spawnsFolder")
 
@@ -26,6 +29,7 @@ function playerArenaClass:GetEvents(arena) --Gets the events, not associated wit
         roundConcluded = _G.Event.new();
         playerMatchConcluded = _G.Event.new();
         matchConcluded = _G.Event.new();
+        settingChanged = _G.Event.new();
         playerKilled = _G.Event.new();
     }
     playerArenaClass.arenaEvents[arena] = events
@@ -39,6 +43,8 @@ playerArenaClass.new = function(playerObject, team, teamNumber, arena) --Creates
     self.teamNumber = teamNumber --Player's number in the team
     self.arena = arena --The arena model the class is associated with
     self.isEligible = false --Determines if match is eligible fpr beginning
+    self.matchInProgress = false 
+
     self.spawnLocation = arena.spawnsFolder:FindFirstChild(team.."-"..teamNumber)
 
     self.playerScoreboard1 = arena.billMain.scoreboard1[team.."Frame"][teamNumber]
@@ -51,8 +57,22 @@ playerArenaClass.new = function(playerObject, team, teamNumber, arena) --Creates
     self.startGradient = self.startButton:WaitForChild("UIGradient")
     self.borderPixel = self.startButton:WaitForChild("borderPixel")
     self.startPixelGradient = self.borderPixel:WaitForChild("UIGradient")
+
+
+    self.changeSettingsFrame = self.duelUI:WaitForChild("changeSettingsFrame")
+    self.settingsborderPixel = self.changeSettingsFrame:WaitForChild("borderPixel")
+    self.settingsGradient = self.changeSettingsFrame:WaitForChild("UIGradient")
+    self.settingsborderGradient = self.settingsborderPixel:WaitForChild("UIGradient")
+    self.firsttoButton = self.changeSettingsFrame:WaitForChild("firsttoButton")
+    self.firsttoList = self.firsttoButton:WaitForChild("listFrame")
+    self.winbyButton = self.changeSettingsFrame:WaitForChild("winbyButton")
+    self.winbyList = self.winbyButton:WaitForChild("listFrame")
+    self.countdownLabel = self.changeSettingsFrame:WaitForChild("countdownLabel")
     ---[[ Player Variables ]]---
     self.sword = nil --THe player's given sword
+
+    self.kills = 0
+    self.deaths = 0
     CollectionService:AddTag(playerObject, team)
     ---[[ Connections ]]---
     self.connections =
@@ -60,8 +80,9 @@ playerArenaClass.new = function(playerObject, team, teamNumber, arena) --Creates
         ["startButtonClicked"] = nil;
         ["diedConnection"] = nil;
     }
-
+    self.matchsettingsEnabled = false
     self:HandlePlayerScoreboards()
+    self:HandleMatchSettings()
     self:HandleEvents()
     return self
 end
@@ -70,6 +91,7 @@ function playerArenaClass:HandlePlayerScoreboard(scoreboard)
     scoreboard.Visible = true
     scoreboard.avatar.Image = game.Players:GetUserThumbnailAsync(self.playerObject.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
     scoreboard.playerName.Text = self.playerObject.Name
+    scoreboard.kdrLabel.Text = self.kills.."-"..self.deaths
 end 
 
 function playerArenaClass:HandlePlayerScoreboards()
@@ -77,6 +99,31 @@ function playerArenaClass:HandlePlayerScoreboards()
     self:HandlePlayerScoreboard(self.playerScoreboard2)    
 end
 
+function playerArenaClass:HandleSettingList(listFrame)
+    local start, finish = string.find(listFrame.Parent.Name, "Button") --Finds the frame so the system can find the name of the setting.
+    local settingName = string.sub(listFrame.Parent.Name, 1, start-1)
+    local events = playerArenaClass.arenaEvents[self.arena]
+    for index, button in next, listFrame:GetChildren() do
+        local clicker = button:WaitForChild("clicker")
+        clicker.MouseButton1Click:Connect(function()
+            if(not self.matchInProgress or self.matchsettingsEnabled == false) then return end
+            events.settingChanged:fire(settingName, tonumber(button.Name))
+        end)
+    end
+end 
+
+function playerArenaClass:HandleMatchSettings() --Handles the match settings and Uis associated with it.
+    self:HandleSettingList(self.firsttoList)
+    self:HandleSettingList(self.winbyList)
+    coroutine.wrap(function()
+        for index = countdownTime, 1, -1 do
+            self.countdownLabel.Text = index
+            wait(1)
+        end
+        self.matchsettingsEnabled = false
+        self.changeSettingsFrame.Visible = false
+    end)()
+end
 
 function playerArenaClass:HandleStartButton()
     local startColor = Color3.fromRGB(170, 0, 0)
@@ -93,6 +140,8 @@ function playerArenaClass:HandleStartButton()
       )
     self.startGradient.Color = colorSequence
     self.startPixelGradient.Color = colorSequence
+    self.settingsGradient.Color = colorSequence
+    self.settingsborderGradient.Color = colorSequence
     local events = playerArenaClass.arenaEvents[self.arena]
     self.connections["startButtonClicked"] = self.realStartButton.MouseButton1Click:Connect(function()
         if(self.isEligible) then
@@ -109,6 +158,8 @@ function playerArenaClass:HandleDeathEvent()
     local characterObject = self.playerObject.Character or self.playerObject.CharacterAdded:Wait()
     local humanoid = characterObject:WaitForChild("Humanoid")
    self.connections["diedConnection"] = humanoid.Died:Connect(function()
+         self.deaths += 1
+        self:HandlePlayerScoreboards()
         local creator = humanoid:FindFirstChild("creator")
         events.playerKilled:fire(creator.Value, self.team, self.playerObject)
         self.sword = nil
@@ -120,7 +171,6 @@ function playerArenaClass:HandleEvents() --Handles all of the events associated 
     self:HandleStartButton()
     local events = playerArenaClass.arenaEvents[self.arena]
     events.promptBegin:connect(function(isEligible)
-        print("Prompting begin!")
         if(isEligible) then
             self.startButton.Visible = true
             self.isEligible = true
@@ -133,7 +183,10 @@ function playerArenaClass:HandleEvents() --Handles all of the events associated 
     end)  
 
     events.matchBegun:connect(function()
+        self.matchInProgress = true
+        self.matchsettingsEnabled = true
         self.startButton.Visible = false
+        self.changeSettingsFrame.Visible = true
     end)
     
     events.beginRound:connect(function()
@@ -158,10 +211,12 @@ function playerArenaClass:HandleEvents() --Handles all of the events associated 
     end)
 
     events.playerKilled:connect(function(killer)
-        print(killer)
+        if(killer == self.playerObject) then
+            self.kills += 1
+            self:HandlePlayerScoreboards()
+        end
     end)
     events.playerMatchConcluded:connect(function()
-        print("Player match concluded for "..self.playerObject.Name)
         local characterObject = self.playerObject.Character or self.playerObject.CharacterAppearanceLoaded:Wait()
         local humanoidRootPart = characterObject:WaitForChild("HumanoidRootPart")
         local randomSpawn = math.random(1, #spawnsFolder:GetChildren())
