@@ -50,7 +50,7 @@ function Arena:CreateArenaData()
         team1 = 0;
         team2 = 0
     }
-
+    self.playerClasses = {} --Classes for all the players's playerArenaClass
     self.firstto = 3
     self.winby = 1
 
@@ -82,8 +82,7 @@ function Arena.new(arenaModel)
     end
     ---[[ Team Variables ]]---
     self:CreateArenaData()
-    self.events = playerArenaClass:GetEvents(arenaModel)
-    self.playerClasses = {} --Classes for all the players's playerArenaClass
+    self.events = playerArenaClass:GetEvents(self.arenaModel)
     ---[[ Functionality ]]---
     self:HandleScoreboard()
     self:ActivatePads()
@@ -138,7 +137,6 @@ function Arena:HandleEnteringAndLeavingPad(padObject, padField)
     local padNumber = string.sub(padObject.Name, finish+1, string.len(padObject.Name))
     padNumber = tonumber(padNumber)
     padField.PlayerEntered:Connect(function(playerObject)
-        print("Player entered pad!")
         if(self.padOwners[team][padNumber] ~= nil or self.matchInProgress) then return end
         local success, err = pcall(function()
             if(self.teamCount[team] == padNumber - 1) then
@@ -208,6 +206,14 @@ function Arena:HandleEvents()
         }
         self:UpdateScoreboards()
     end)
+    self.events.beginRound:connect(function()
+        self.playersAlive =
+        {
+            team1 = self.teamCount["team1"];
+            team2 = self.teamCount["team2"];
+        }
+    end)
+
     self.events.playerKilled:connect(function(killer, team, killedPlayer)
         if(self.playersAlive) then
             killedPlayer.CharacterAppearanceLoaded:Wait()
@@ -233,19 +239,29 @@ function Arena:HandleEvents()
     end)
 
     self.events.matchConcluded:connect(function()
+        for index, event in next,  self.events do
+            event:disconnectAll()
+        end
         self:CreateArenaData()
         self:UpdateScoreboards()
+        --self.events = playerArenaClass:GetEvents(self.arenaModel)
+        self:HandleEvents()
         self:ActivatePads()
     end)
 
     self.events.settingChanged:connect(function(settingToChange, newValue) --Handles a certains etting being changed and sets the value accordingly.
-        print(settingToChange)
-        print(newValue)
         local setting = arenaData[settingToChange.."Settings"][newValue]
-        print(setting)
         if(not setting) then return end 
         self[settingToChange] = newValue 
         self:UpdateScoreboards()
+    end)
+
+    ---[[ Handle Removing Players and ending the match ]]---
+    game.Players.PlayerRemoving:Connect(function(playerObject)
+        if(self.playerClasses[playerObject]) then
+            self.events.playerMatchConcluded:fire()
+            self.events.matchConcluded:fire()
+        end
     end)
 end
 
