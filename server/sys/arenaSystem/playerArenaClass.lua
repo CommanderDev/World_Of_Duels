@@ -38,6 +38,7 @@ end
 
 playerArenaClass.new = function(playerObject, team, teamNumber, arena) --Creates a bew player arena class. Arguments are the player object, the team name(typically team 1 or team 2) and the number the player is on the team. So first on the pad is 1, second is 2, etc.
     local self = setmetatable({}, playerArenaClass)
+    print(playerObject.Name.." arena class created")
     self.playerObject = playerObject
     self.team = team -- Player's team
     self.teamNumber = teamNumber --Player's number in the team
@@ -81,19 +82,20 @@ playerArenaClass.new = function(playerObject, team, teamNumber, arena) --Creates
         ["diedConnection"] = nil;
     }
 
-    self.eventConnections =
+    self.eventConnections = --Connections for each match event the player will use.
     {
         promptBegin = nil;
         matchBegun = nil;
         beginRound = nil;
+        roundConcluded = nil;
         playerKilled = nil;
         playerMatchConcluded = nil;
     }
 
     self.matchsettingsEnabled = false
     self:HandlePlayerScoreboards()
-    self:HandleMatchSettings()
     self:HandleEvents()
+    self:HandleMatchSettings()
     return self
 end
 
@@ -220,7 +222,12 @@ function playerArenaClass:HandleEvents() --Handles all of the events associated 
         end 
         self:HandleDeathEvent()
     end)
-
+    connections.roundConcluded = events.roundConcluded:connect(function()
+        if(self.matchsettingsEnabled) then
+            self.matchsettingsEnabled = false 
+            self.changeSettingsFrame.Visible = false
+        end 
+    end)
     connections.playerKilled = events.playerKilled:connect(function(killer)
         if(killer == self.playerObject) then
             self.kills += 1
@@ -228,7 +235,6 @@ function playerArenaClass:HandleEvents() --Handles all of the events associated 
         end
     end)
     connections.playerMatchConcluded = events.playerMatchConcluded:connect(function()
-        print("Player match concluded")
         local playerObject = self.playerObject
         if(self.sword) then
             self.sword:Destroy()
@@ -260,13 +266,15 @@ function playerArenaClass:Destroy()
         self:DisconnectConnections()
         self.playerScoreboard1.Visible = false 
         self.playerScoreboard2.Visible = false
-        for index, event in next, self.eventConnections do
-            event:disconnect()
-        end
+        
+        
         self.changeSettingsFrame.Visible = false
         CollectionService:RemoveTag(self.playerObject, self.team)
         self = nil 
     end)
+    if(not success) then
+        print(errorMessage)
+    end
 end
 
 return playerArenaClass
