@@ -80,6 +80,16 @@ playerArenaClass.new = function(playerObject, team, teamNumber, arena) --Creates
         ["startButtonClicked"] = nil;
         ["diedConnection"] = nil;
     }
+
+    self.eventConnections =
+    {
+        promptBegin = nil;
+        matchBegun = nil;
+        beginRound = nil;
+        playerKilled = nil;
+        playerMatchConcluded = nil;
+    }
+
     self.matchsettingsEnabled = false
     self:HandlePlayerScoreboards()
     self:HandleMatchSettings()
@@ -170,7 +180,8 @@ end
 function playerArenaClass:HandleEvents() --Handles all of the events associated witht eh player class.
     self:HandleStartButton()
     local events = playerArenaClass.arenaEvents[self.arena]
-    events.promptBegin:connect(function(isEligible)
+    local connections = self.eventConnections
+    connections.promptBegin = events.promptBegin:connect(function(isEligible)
         if(isEligible) then
             self.startButton.Visible = true
             self.isEligible = true
@@ -182,14 +193,14 @@ function playerArenaClass:HandleEvents() --Handles all of the events associated 
         end
     end)  
 
-    events.matchBegun:connect(function()
+    connections.matchBegun = events.matchBegun:connect(function()
         self.matchInProgress = true
         self.matchsettingsEnabled = true
         self.startButton.Visible = false
         self.changeSettingsFrame.Visible = true
     end)
     
-    events.beginRound:connect(function()
+    connections.beginRound = events.beginRound:connect(function()
         if(self.connections["diedConnection"]) then
             self.connections["diedConnection"]:Disconnect()
         end
@@ -210,22 +221,29 @@ function playerArenaClass:HandleEvents() --Handles all of the events associated 
         self:HandleDeathEvent()
     end)
 
-    events.playerKilled:connect(function(killer)
+    connections.playerKilled = events.playerKilled:connect(function(killer)
         if(killer == self.playerObject) then
             self.kills += 1
             self:HandlePlayerScoreboards()
         end
     end)
-    events.playerMatchConcluded:connect(function()
-        local characterObject = self.playerObject.Character or self.playerObject.CharacterAppearanceLoaded:Wait()
-        local humanoidRootPart = characterObject:WaitForChild("HumanoidRootPart")
-        local randomSpawn = math.random(1, #spawnsFolder:GetChildren())
-        humanoidRootPart.CFrame = spawnsFolder:GetChildren()[randomSpawn].CFrame
+    connections.playerMatchConcluded = events.playerMatchConcluded:connect(function()
+        print("Player match concluded")
+        local playerObject = self.playerObject
         if(self.sword) then
             self.sword:Destroy()
         end
-        Player.playerClasses[self.playerObject]:SetCharacterCollisionGroup("Players")
         self:Destroy()
+        local characterObject = playerObject.Character --or self.playerObject.CharacterAppearanceLoaded:Wait()
+        if(characterObject) then 
+            local humanoidRootPart = characterObject:WaitForChild("HumanoidRootPart")
+            local randomSpawn = math.random(1, #spawnsFolder:GetChildren())
+            humanoidRootPart.CFrame = spawnsFolder:GetChildren()[randomSpawn].CFrame
+        end
+        Player.playerClasses[playerObject]:SetCharacterCollisionGroup("Players")
+        if(self) then 
+            self:Destroy()
+        end
     end) 
 end
 
@@ -238,11 +256,17 @@ function playerArenaClass:DisconnectConnections()
 end
 
 function playerArenaClass:Destroy()
-    self:DisconnectConnections()
-    self.playerScoreboard1.Visible = false 
-    self.playerScoreboard2.Visible = false
-    CollectionService:RemoveTag(self.playerObject, self.team)
-    self = nil 
+    local success, errorMessage = pcall(function()
+        self:DisconnectConnections()
+        self.playerScoreboard1.Visible = false 
+        self.playerScoreboard2.Visible = false
+        for index, event in next, self.eventConnections do
+            event:disconnect()
+        end
+        self.changeSettingsFrame.Visible = false
+        CollectionService:RemoveTag(self.playerObject, self.team)
+        self = nil 
+    end)
 end
 
 return playerArenaClass
