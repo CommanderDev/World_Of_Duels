@@ -51,6 +51,7 @@ function Arena:CreateArenaData()
         team2 = 0
     }
     self.playerClasses = {} --Classes for all the players's playerArenaClass
+    self.events = playerArenaClass:GetEvents(self.arenaModel)
     self.firstto = 3
     self.winby = 1
 
@@ -82,7 +83,6 @@ function Arena.new(arenaModel)
     end
     ---[[ Team Variables ]]---
     self:CreateArenaData()
-    self.events = playerArenaClass:GetEvents(self.arenaModel)
     ---[[ Functionality ]]---
     self:HandleScoreboard()
     self:ActivatePads()
@@ -122,10 +122,12 @@ end
 
 function Arena:CheckMatchEligibility()
     if(self.teamCount["team1"] == self.teamCount["team2"] and self.teamCount["team1"] > 0) then
+        print("Prompting begin")
         self.matchState = "Awaiting Begin"
         self.events.promptBegin:fire(true)
     else
         self.matchState = "Awaiting Players"
+        print("unprompting begin!")
         self.events.promptBegin:fire(false)
     end
     self:UpdateScoreboards()
@@ -142,8 +144,8 @@ function Arena:HandleEnteringAndLeavingPad(padObject, padField)
             if(self.teamCount[team] == padNumber - 1) then
                 padObject.BrickColor = arenaData.defaultTeamColors[team]
                 self.teamCount[team] = padNumber
+                print(self.teamCount[team].." is the new teamcount")
                 self.padOwners[team][padNumber] = playerObject
-                
                 self.playerClasses[playerObject] = playerArenaClass.new(playerObject, team, padNumber, self.arenaModel) --Create player class.
                 playerClasses[playerObject]:SetCharacterCollisionGroup("In Arena")
                 self:DeterminePadActivation()
@@ -163,12 +165,11 @@ function Arena:HandleEnteringAndLeavingPad(padObject, padField)
         if(self.teamCount[team]) < 0 then
             self.teamCount[team] = 0
         end
+        self:CheckMatchEligibility()
         if(self.playerClasses[playerObject]) then
             self.playerClasses[playerObject]:Destroy() --Destroy player class
-            self.playerClasses[playerObject] = nil
         end
         playerClasses[playerObject]:SetCharacterCollisionGroup("Players")
-        self:CheckMatchEligibility()
         self:DeterminePadActivation()
     end)
 end
